@@ -50,7 +50,7 @@ io.on('connection', socket => {
 
 // Rotas da API HTTP
 app.get('/', (req, res) => {
-  res.send("Bem-vindo à API de gerenciamento de recursos");
+  res.send("Bem-vindo à API de gerenciamento de recursos em producao");
 });
 
 // Listar todos os recursos
