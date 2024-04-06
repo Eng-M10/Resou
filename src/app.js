@@ -5,7 +5,8 @@ const http = require('http');
 const socketIo = require('socket.io');
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
+
 
 app.use(bodyParser.json());
 app.use(cors()); // Habilitar CORS para a API HTTP
@@ -91,5 +92,5 @@ app.put('/recursos/:id/devolver', (req, res) => {
 
 // Iniciar o servidor
 server.listen(port, () => {
-  console.log(`Servidor rodando em http://localhost:${port}`);
+  console.log(`Servidor rodando em https://resources-2ndh.onrender.com:${port}`);
 });
