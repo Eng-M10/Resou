@@ -14,6 +14,7 @@ app.use(bodyParser.json());
 app.use(cors(corsOptions)); // Habilitar CORS para a API HTTP
 
 let recursos = [];
+let reservas = {}; // Mapa de ID do recurso para ID do cliente que o reservou
 
 // Inicialize o WebSocket no servidor Express
 expressWs(app);
@@ -33,6 +34,7 @@ app.ws('/ws', function (ws, req) {
       const recurso = recursos.find(r => r.id === id);
       if (recurso && recurso.disponivel) {
         recurso.disponivel = false;
+        reservas[id] = ws.id; // Armazenar reserva associada ao ID do cliente
         // Enviar atualização para todos os clientes
         app.getWss().clients.forEach(client => {
           if (client.readyState === WebSocket.OPEN) {
@@ -43,8 +45,9 @@ app.ws('/ws', function (ws, req) {
     } else if (data.type === 'devolverRecurso') {
       const id = data.id;
       const recurso = recursos.find(r => r.id === id);
-      if (recurso && !recurso.disponivel) {
+      if (recurso && !recurso.disponivel && reservas[id] === ws.id) { // Verificar se o cliente atual reservou este recurso
         recurso.disponivel = true;
+        delete reservas[id]; // Remover reserva associada ao ID do cliente
         // Enviar atualização para todos os clientes
         app.getWss().clients.forEach(client => {
           if (client.readyState === WebSocket.OPEN) {
@@ -80,6 +83,7 @@ app.put('/recursos/:id/reservar', (req, res) => {
   const recurso = recursos.find(r => r.id === id);
   if (recurso && recurso.disponivel) {
     recurso.disponivel = false;
+    reservas[id] = req.headers['x-client-id']; // Armazenar reserva associada ao ID do cliente
     res.json({ message: `${recurso.nome} reservado com sucesso!`, recurso });
   } else {
     res.status(400).json({ message: 'Recurso não encontrado ou já reservado' });
@@ -90,11 +94,12 @@ app.put('/recursos/:id/reservar', (req, res) => {
 app.put('/recursos/:id/devolver', (req, res) => {
   const id = parseInt(req.params.id);
   const recurso = recursos.find(r => r.id === id);
-  if (recurso && !recurso.disponivel) {
+  if (recurso && !recurso.disponivel && reservas[id] === req.headers['x-client-id']) { // Verificar se o cliente atual reservou este recurso
     recurso.disponivel = true;
+    delete reservas[id]; // Remover reserva associada ao ID do cliente
     res.json({ message: `${recurso.nome} devolvido com sucesso!`, recurso });
   } else {
-    res.status(400).json({ message: 'Recurso não encontrado ou já disponível' });
+    res.status(400).json({ message: 'Recurso não encontrado ou não reservado por este cliente' });
   }
 });
 
