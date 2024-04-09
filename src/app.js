@@ -90,7 +90,7 @@ app.put('/recursos/:id/devolver', (req, res) => {
   }
 });
 
-// Iniciar o servidor
+//
 server.listen(port, () => {
   console.log(`Servidor rodando em https://resources-2ndh.onrender.com:${port}`);
 });
