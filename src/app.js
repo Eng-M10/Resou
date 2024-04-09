@@ -6,7 +6,9 @@ const socketIo = require('socket.io');
 
 const app = express();
 const port = process.env.PORT || 3000;
-
+const ws_port = process.env.PORT;
+const wss = new WebSocketServer({ port: ws_port });
+console.log('listening for connections on %s...', ws_port);
 
 app.use(bodyParser.json());
 app.use(cors()); // Habilitar CORS para a API HTTP
