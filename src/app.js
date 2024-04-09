@@ -72,7 +72,7 @@ app.get('/recursos', (req, res) => {
 // Adicionar um novo recurso
 app.post('/recursos', (req, res) => {
   const { nome } = req.body;
-  const novoRecurso = { id: recursos.length + 1, nome, disponivel: true };
+  const novoRecurso = { id: recursos.length + 1, nome, disponivel: true, reservaId: null }; // Inicialmente, nenhum cliente reservou o recurso
   recursos.push(novoRecurso);
   res.status(201).json({ message: `${novoRecurso.nome} adicionado com sucesso!`, recurso: novoRecurso });
 });
@@ -83,7 +83,7 @@ app.put('/recursos/:id/reservar', (req, res) => {
   const recurso = recursos.find(r => r.id === id);
   if (recurso && recurso.disponivel) {
     recurso.disponivel = false;
-    reservas[id] = req.headers['x-client-id']; // Armazenar reserva associada ao ID do cliente
+    recurso.reservaId = req.headers['x-client-id']; // Atualizar o ID de reserva com o ID do cliente atual
     res.json({ message: `${recurso.nome} reservado com sucesso!`, recurso });
   } else {
     res.status(400).json({ message: 'Recurso não encontrado ou já reservado' });
@@ -94,14 +94,15 @@ app.put('/recursos/:id/reservar', (req, res) => {
 app.put('/recursos/:id/devolver', (req, res) => {
   const id = parseInt(req.params.id);
   const recurso = recursos.find(r => r.id === id);
-  if (recurso && !recurso.disponivel && reservas[id] === req.headers['x-client-id']) { // Verificar se o cliente atual reservou este recurso
+  if (recurso && !recurso.disponivel && recurso.reservaId === req.headers['x-client-id']) { // Verificar se o cliente atual reservou este recurso
     recurso.disponivel = true;
-    delete reservas[id]; // Remover reserva associada ao ID do cliente
+    recurso.reservaId = null; // Limpar o ID de reserva
     res.json({ message: `${recurso.nome} devolvido com sucesso!`, recurso });
   } else {
     res.status(400).json({ message: 'Recurso não encontrado ou não reservado por este cliente' });
   }
 });
+
 
 // Iniciar o servidor
 app.listen(port, () => {
