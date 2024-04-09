@@ -1,49 +1,57 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const http = require('http');
-const socketIo = require('socket.io');
+const expressWs = require('express-ws');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
+const corsOptions = {
+  origin: true, // Permitir todas as origens
+};
 
 app.use(bodyParser.json());
-app.use(cors()); // Habilitar CORS para a API HTTP
+app.use(cors(corsOptions)); // Habilitar CORS para a API HTTP
 
 let recursos = [];
 
-// Configuração do servidor WebSocket
-const server = http.createServer(app);
-const io = socketIo(server, {
-  cors: {
-    origin: '*', // Permitir solicitações de qualquer origem
-    methods: ['GET', 'POST'] // Permitir métodos GET e POST
-  }
-});
+// Inicialize o WebSocket no servidor Express
+expressWs(app);
 
-// Socket.io - Manipulação de eventos
-io.on('connection', socket => {
+// Configuração do servidor WebSocket
+app.ws('/ws', function (ws, req) {
   console.log('Novo cliente conectado');
 
   // Enviar lista de recursos para o cliente
-  socket.emit('recursos', recursos);
+  ws.send(JSON.stringify({ type: 'recursos', data: recursos }));
 
-  // Manipular evento de reservar recurso
-  socket.on('reservarRecurso', id => {
-    const recurso = recursos.find(r => r.id === id);
-    if (recurso && recurso.disponivel) {
-      recurso.disponivel = false;
-      io.emit('recursos', recursos);
-    }
-  });
-
-  // Manipular evento de devolver recurso
-  socket.on('devolverRecurso', id => {
-    const recurso = recursos.find(r => r.id === id);
-    if (recurso && !recurso.disponivel) {
-      recurso.disponivel = true;
-      io.emit('recursos', recursos);
+  // Manipular mensagem de reserva de recurso
+  ws.on('message', function incoming(message) {
+    const data = JSON.parse(message);
+    if (data.type === 'reservarRecurso') {
+      const id = data.id;
+      const recurso = recursos.find(r => r.id === id);
+      if (recurso && recurso.disponivel) {
+        recurso.disponivel = false;
+        // Enviar atualização para todos os clientes
+        app.getWss().clients.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ type: 'recursos', data: recursos }));
+          }
+        });
+      }
+    } else if (data.type === 'devolverRecurso') {
+      const id = data.id;
+      const recurso = recursos.find(r => r.id === id);
+      if (recurso && !recurso.disponivel) {
+        recurso.disponivel = true;
+        // Enviar atualização para todos os clientes
+        app.getWss().clients.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ type: 'recursos', data: recursos }));
+          }
+        });
+      }
     }
   });
 });
@@ -90,7 +98,7 @@ app.put('/recursos/:id/devolver', (req, res) => {
   }
 });
 
-//
-server.listen(port, () => {
-  console.log(`Servidor rodando em https://resources-2ndh.onrender.com:${port}`);
+// Iniciar o servidor
+app.listen(port, () => {
+  console.log(`Servidor rodando em http://localhost:${port}`);
 });
